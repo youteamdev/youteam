@@ -3,9 +3,12 @@ package cli
 import (
 	"bytes"
 	"context"
+	"net"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	urfavecli "github.com/urfave/cli/v3"
 )
@@ -113,6 +116,57 @@ func TestCommandGroupsShowSubcommandHelp(t *testing.T) {
 	}
 }
 
+func TestServerRunReturnsConfigLoadError(t *testing.T) {
+	_, _, err := runCLI(t, NewCommand("test-version"), "--config", filepath.Join(t.TempDir(), "missing.toml"), "server", "run")
+	if err == nil {
+		t.Fatal("Run() error = nil, want error")
+	}
+	if !strings.Contains(err.Error(), "load config") {
+		t.Fatalf("Run() error = %v, want load config error", err)
+	}
+}
+
+func TestServerRunStartsWithDebugLoggingUntilContextCancel(t *testing.T) {
+	t.Chdir(t.TempDir())
+	port := unusedTCPPort(t)
+	t.Setenv("HOST", "127.0.0.1")
+	t.Setenv("PORT", port)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	type result struct {
+		stdout string
+		stderr string
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		stdout, stderr, err := runCLIResult(ctx, NewCommand("test-version"), "--debug", "server", "run")
+		done <- result{stdout: stdout, stderr: stderr, err: err}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	select {
+	case got := <-done:
+		if got.err != nil {
+			t.Fatalf("Run() error = %v", got.err)
+		}
+		if got.stdout != "" {
+			t.Fatalf("stdout = %q, want empty", got.stdout)
+		}
+		for _, want := range []string{"debug: config source: environment", "debug: listen address: 127.0.0.1:" + port} {
+			if !strings.Contains(got.stderr, want) {
+				t.Fatalf("stderr = %q, want to contain %q", got.stderr, want)
+			}
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run() did not stop after context cancellation")
+	}
+}
+
 func TestDebugLoggerWritesOnlyWhenEnabled(t *testing.T) {
 	var disabled bytes.Buffer
 	newDebugLogger(false, &disabled).Debugf("listen address: %s", "127.0.0.1:8080")
@@ -166,15 +220,35 @@ func assertCommandNames(t *testing.T, commands []*urfavecli.Command, want []stri
 	}
 }
 
+func unusedTCPPort(t *testing.T) string {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen() error = %v", err)
+	}
+	defer listener.Close()
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("SplitHostPort() error = %v", err)
+	}
+	return port
+}
+
 func runCLI(t *testing.T, cmd *urfavecli.Command, args ...string) (string, string, error) {
 	t.Helper()
 
+	return runCLIResult(context.Background(), cmd, args...)
+}
+
+func runCLIResult(ctx context.Context, cmd *urfavecli.Command, args ...string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Writer = &stdout
 	cmd.ErrWriter = &stderr
 
 	runArgs := append([]string{cmd.Name}, args...)
-	err := cmd.Run(context.Background(), runArgs)
+	err := cmd.Run(ctx, runArgs)
 	return stdout.String(), stderr.String(), err
 }

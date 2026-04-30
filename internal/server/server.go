@@ -1,3 +1,4 @@
+// Package server serves embedded web assets over HTTP.
 package server
 
 import (

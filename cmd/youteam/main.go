@@ -1,3 +1,4 @@
+// Package main wires the youteam command-line application.
 package main
 
 import (

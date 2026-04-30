@@ -1,3 +1,4 @@
+// Package cli builds the YouTeam command-line interface.
 package cli
 
 import (

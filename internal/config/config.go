@@ -1,3 +1,4 @@
+// Package config loads runtime settings for YouTeam.
 package config
 
 import (
