@@ -12,3 +12,11 @@ repos:
       - id: check-json
       - id: check-merge-conflict
       - id: check-toml
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint run
+        entry: golangci-lint run
+        language: system
+        types: [go]
+        pass_filenames: false
