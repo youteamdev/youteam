@@ -1,9 +1,22 @@
 set positional-arguments
 
 dev *args:
-    @mkdir -p dist
-    @go build -o dist/youteam ./cmd/youteam
-    @./dist/youteam "$@"
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    mkdir -p dist
+
+    semver_pattern='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+    version="0.0.0"
+    tag="$(git describe --tags --exact-match HEAD 2>/dev/null || true)"
+    normalized_tag="${tag#v}"
+    if [[ "$normalized_tag" =~ $semver_pattern ]]; then
+        version="$tag"
+    fi
+    commit="$(git rev-parse --short=7 HEAD 2>/dev/null || printf dev)"
+
+    go build -ldflags "-X main.version=${version} -X main.commit=${commit}" -o dist/youteam ./cmd/youteam
+    ./dist/youteam "$@"
 
 test:
     #!/usr/bin/env bash

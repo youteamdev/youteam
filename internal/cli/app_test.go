@@ -34,12 +34,12 @@ func TestNewCommandRootMetadata(t *testing.T) {
 }
 
 func TestVersionCommandWritesConfiguredVersion(t *testing.T) {
-	stdout, stderr, err := runCLI(t, NewCommand("1.2.3"), "version")
+	stdout, stderr, err := runCLI(t, NewCommand("1.2.3-abcdef0"), "version")
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if stdout != "1.2.3\n" {
-		t.Fatalf("stdout = %q, want %q", stdout, "1.2.3\n")
+	if stdout != "1.2.3-abcdef0\n" {
+		t.Fatalf("stdout = %q, want %q", stdout, "1.2.3-abcdef0\n")
 	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)

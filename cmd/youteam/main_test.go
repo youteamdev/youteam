@@ -10,10 +10,16 @@ import (
 func TestMainRunsVersionCommand(t *testing.T) {
 	originalArgs := os.Args
 	originalStdout := os.Stdout
+	originalVersion := version
+	originalCommit := commit
 	t.Cleanup(func() {
 		os.Args = originalArgs
 		os.Stdout = originalStdout
+		version = originalVersion
+		commit = originalCommit
 	})
+	version = defaultVersion
+	commit = defaultCommit
 
 	reader, writer, err := os.Pipe()
 	if err != nil {
@@ -37,7 +43,7 @@ func TestMainRunsVersionCommand(t *testing.T) {
 	if _, err := io.Copy(&stdout, reader); err != nil {
 		t.Fatalf("Copy() error = %v", err)
 	}
-	if stdout.String() != "dev\n" {
-		t.Fatalf("stdout = %q, want %q", stdout.String(), "dev\n")
+	if stdout.String() != "0.0.0-dev\n" {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), "0.0.0-dev\n")
 	}
 }
